@@ -31,7 +31,7 @@ A low-frequency utility as a **single webpage**: open when needed, close when do
 
 1. Edit files and push to `main`
 2. GitHub Pages updates automatically
-3. Cloudflare Pages deploys via GitHub Action (one-time secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`)
+3. Cloudflare Pages is on the **Sugar Diamond** account (`clip.srint.cn`). Git auto-connect is blocked by a Cloudflare Pages Git installation issue; redeploy via wrangler/pages deploy or reinstall the GitHub app
 
 Same artifact, two hosts. Day-to-day work is just edit + push.
 

@@ -31,7 +31,7 @@
 
 1. 改 `index.html` 等文件并 push 到 `main`
 2. GitHub Pages 自动更新（GitHub 自带）
-3. Cloudflare Pages 通过 GitHub Action 自动部署（需一次性配置 `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`）
+3. Cloudflare Pages 部署在 **Sugar Diamond** 账号（正式入口 `clip.srint.cn`）。GitHub 自动连接因 Pages Git 安装异常暂未接通；可用 wrangler/`pages deploy` 或修复 Git 安装后一键连仓库
 
 没有两套业务代码，只是**同一产物两个托管出口**；平时维护 ≈ 改一个文件 + push。
 
