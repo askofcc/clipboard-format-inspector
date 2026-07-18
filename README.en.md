@@ -1,62 +1,58 @@
-# Clipboard Format Inspector (Userscript)
+# Clipboard Format Inspector
 
-[中文说明](./README.md)
+[中文说明](./README.md) · [Live demo](https://askofcc.github.io/clipboard-format-inspector/)
 
-A Tampermonkey / Violentmonkey userscript that inspects **as many clipboard formats as the browser allows**.
+A low-frequency utility works better as a **single webpage**: open it when needed, close it when done.
 
-After you copy rich text, images, or other formatted content, the script lists available MIME types and shows plain text, HTML source/render, image previews, and binary hex dumps when possible.
+The page shows as many browser-readable clipboard formats as possible (`text/plain`, `text/html`, images, and custom type names visible on paste).
+
+## Use online
+
+**[Open the web app](https://askofcc.github.io/clipboard-format-inspector/)**
+
+You can also download [`index.html`](./index.html) and open it locally. Some browsers restrict the Clipboard API more on `file://`; prefer the hosted page or a local http server.
 
 ## Features
 
-- Floating **CB** button at the bottom-right to open the inspector panel
-- **Clipboard API read** via `navigator.clipboard.read()` for standard formats
-- **Paste capture** with `Ctrl/Cmd+V` in the panel to enumerate `clipboardData.types` (better for custom type names)
-- Format-aware views:
-  - `text/*` → text
-  - `text/html` → rendered preview + HTML source
-  - `image/*` → image preview
-  - binary / non-text → hex preview
-- Copy text, download individual items, export JSON
-
-## Install
-
-1. Install [Tampermonkey](https://www.tampermonkey.net/) or [Violentmonkey](https://violentmonkey.github.io/)
-2. Install from raw script:
-
-   **[Install clipboard-inspector.user.js](https://raw.githubusercontent.com/askofcc/clipboard-format-inspector/main/clipboard-inspector.user.js)**
-
-3. Refresh any page and click the **CB** button
-
-Alternatively, paste the contents of `clipboard-inspector.user.js` into Tampermonkey → “Create a new script”.
+- **Clipboard API read** via `navigator.clipboard.read()`
+- **Paste capture** with `Ctrl/Cmd+V` to enumerate `clipboardData.types`
+- Format-aware views: text / HTML render + source / image / hex
+- Copy, download items, export JSON
+- Chinese / English switch (persisted)
+- Processing stays in your browser; nothing is uploaded
 
 ## Usage
 
-1. Copy content from any app (plain text, rich HTML, screenshot/image, etc.)
-2. Open the inspector panel
-3. Either:
-   - click **Read Clipboard API** (may prompt for permission), or
-   - paste into the panel paste zone (better for discovering type names)
-4. Switch previews, copy, or download from each result card
+1. Copy content (plain text, rich text, image, etc.)
+2. Open the page
+3. Click **Read Clipboard API**, or paste into the paste zone
+4. Inspect each MIME type card
 
-## Browser Limitations (Important)
+## Browser limitations
 
-Web pages **cannot** fully inspect every private system clipboard format the way a desktop app can.
+Web pages **cannot** fully inspect every private system clipboard format.
 
 | Path | What you usually get |
 |------|----------------------|
-| `clipboard.read()` | Standard MIME types such as `text/plain`, `text/html`, `image/png`; requires permission and a secure context (https / localhost) |
-| `paste` + `clipboardData.types` | Fuller type list, sometimes including custom names; many custom formats return empty `getData()` |
-| App-private formats (e.g. some Office internal formats) | Content is generally unavailable to the web page; type names may appear rarely |
+| `clipboard.read()` | Standard MIME types; needs permission + secure context (https / localhost) |
+| `paste` + `clipboardData.types` | Fuller type list; many custom payloads empty |
+| App-private formats | Content generally unavailable |
 
-This script combines **API reads for standard formats** with **paste-time type enumeration**. Content is shown when available; type names and sources are kept even when payload access is blocked.
+## Optional userscript
+
+If you prefer a floating button on every site:
+
+**[clipboard-inspector.user.js](https://raw.githubusercontent.com/askofcc/clipboard-format-inspector/main/clipboard-inspector.user.js)**
+
+The single-page app is the recommended default.
 
 ## Files
 
 | File | Description |
 |------|-------------|
-| `clipboard-inspector.user.js` | Userscript |
-| `README.md` | Chinese docs |
-| `README.en.md` | English docs |
+| `index.html` | Single-page app (recommended) |
+| `clipboard-inspector.user.js` | Optional userscript |
+| `README.md` / `README.en.md` | Docs |
 | `LICENSE` | MIT |
 
 ## License

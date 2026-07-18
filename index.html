@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Clipboard Format Inspector / 剪贴板格式查看器</title>
+  <meta name="description" content="Inspect browser-available clipboard formats: text, HTML, images, custom MIME types. Open when needed, close when done." />
+  <meta name="theme-color" content="#0b1220" />
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --border: #2d3a4f;
+      --text: #eef2ff;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #818cf8;
+      --ok: #34d399;
+      --warn: #fbbf24;
+      --danger: #f87171;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Noto Sans SC", sans-serif;
+      --radius: 12px;
+      --shadow: 0 18px 50px rgba(0, 0, 0, .35);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 500px at 10% -10%, rgba(56, 189, 248, .12), transparent 55%),
+        radial-gradient(900px 420px at 100% 0%, rgba(129, 140, 248, .10), transparent 50%),
+        var(--bg);
+      line-height: 1.5;
+    }
+
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 28px 16px 48px;
+    }
+
+    header.app-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 12px 18px;
+      margin-bottom: 18px;
+    }
+
+    .brand h1 {
+      margin: 0 0 6px;
+      font-size: clamp(1.35rem, 2.4vw, 1.75rem);
+      font-weight: 750;
+      letter-spacing: .2px;
+    }
+
+    .brand p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      max-width: 52ch;
+    }
+
+    .lang-switch {
+      margin-left: auto;
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(17, 24, 39, .75);
+    }
+
+    .lang-switch button {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      padding: 7px 12px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .lang-switch button.active {
+      background: rgba(56, 189, 248, .14);
+      color: var(--accent);
+    }
+
+    .panel {
+      background: rgba(17, 24, 39, .88);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(15, 23, 42, .75);
+    }
+
+    .btn {
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--text);
+      border-radius: 9px;
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color .15s, color .15s, background .15s;
+    }
+
+    .btn:hover {
+      border-color: rgba(56, 189, 248, .55);
+      color: var(--accent);
+    }
+
+    .btn.primary {
+      background: rgba(56, 189, 248, .12);
+      border-color: rgba(56, 189, 248, .4);
+      color: var(--accent);
+    }
+
+    .btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .hint {
+      width: 100%;
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.55;
+    }
+
+    .paste-zone {
+      width: 100%;
+      min-height: 72px;
+      margin-top: 4px;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: var(--muted);
+      font-size: 13px;
+      outline: none;
+      background: rgba(255, 255, 255, .02);
+      cursor: text;
+    }
+
+    .paste-zone:focus {
+      border-color: var(--accent);
+      color: var(--text);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, .12);
+    }
+
+    .body {
+      padding: 14px;
+    }
+
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 12px;
+      line-height: 1.55;
+    }
+
+    .status strong { color: var(--text); }
+    .status.ok strong { color: var(--ok); }
+    .status.warn strong { color: var(--warn); }
+    .status.err strong { color: var(--danger); }
+
+    .empty {
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 34px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13.5px;
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel-2);
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .card-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0, 0, 0, .18);
+    }
+
+    .type {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      color: var(--accent);
+      word-break: break-all;
+    }
+
+    .badge {
+      display: inline-block;
+      font-family: var(--sans);
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    .meta {
+      margin-top: 4px;
+      font-size: 11.5px;
+      color: var(--muted);
+      word-break: break-word;
+    }
+
+    .actions {
+      margin-left: auto;
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .mini {
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      border-radius: 7px;
+      padding: 4px 8px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .mini:hover {
+      color: var(--text);
+      border-color: #64748b;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      padding: 8px 10px 0;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11.5px;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      color: var(--text);
+      border-color: var(--border);
+      background: rgba(255, 255, 255, .04);
+    }
+
+    .content { padding: 10px 12px 12px; }
+
+    .pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.5;
+      max-height: 360px;
+      overflow: auto;
+      background: #0b1220;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .html-view {
+      background: #fff;
+      color: #111;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      max-height: 360px;
+      overflow: auto;
+    }
+
+    .img-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .img-wrap img {
+      max-width: 100%;
+      max-height: 360px;
+      object-fit: contain;
+      border-radius: 8px;
+      background:
+        linear-gradient(45deg, #222 25%, transparent 25%),
+        linear-gradient(-45deg, #222 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #222 75%),
+        linear-gradient(-45deg, transparent 75%, #222 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+      background-color: #333;
+    }
+
+    footer.app-footer {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 12.5px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      align-items: center;
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover { text-decoration: underline; }
+
+    .limits {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      background: rgba(17, 24, 39, .55);
+      color: var(--muted);
+      font-size: 12.5px;
+    }
+
+    .limits h2 {
+      margin: 0 0 6px;
+      font-size: 13px;
+      color: var(--text);
+      font-weight: 650;
+    }
+
+    .limits ul {
+      margin: 0;
+      padding-left: 1.15rem;
+    }
+
+    .limits li { margin: 3px 0; }
+
+    [hidden] { display: none !important; }
+
+    @media (max-width: 640px) {
+      .card-head { flex-direction: column; }
+      .actions { margin-left: 0; }
+      .wrap { padding-top: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="app-header">
+      <div class="brand">
+        <h1 data-i18n="title">剪贴板格式查看器</h1>
+        <p data-i18n="subtitle">打开即用，用完关掉。尽量显示浏览器能读到的剪贴板格式。</p>
+      </div>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" id="langZh" class="active">中文</button>
+        <button type="button" id="langEn">EN</button>
+      </div>
+    </header>
+
+    <main class="panel">
+      <div class="toolbar">
+        <button type="button" class="btn primary" id="btnRead" data-i18n="btnRead">读取剪贴板 API</button>
+        <button type="button" class="btn" id="btnClear" data-i18n="btnClear">清空结果</button>
+        <button type="button" class="btn" id="btnExport" data-i18n="btnExport">导出 JSON</button>
+        <p class="hint" data-i18n="hint">浏览器限制：异步读取通常只能拿到标准 MIME（text/plain、text/html、image/png 等）。自定义格式更多只能在粘贴时看到 type 名，内容可能为空。</p>
+        <div
+          id="pasteZone"
+          class="paste-zone"
+          contenteditable="true"
+          spellcheck="false"
+          tabindex="0"
+          data-i18n="pasteZone"
+        >点这里，然后粘贴（Ctrl/Cmd+V）以捕获 clipboardData 中的所有 types</div>
+      </div>
+
+      <div class="body">
+        <div id="status" class="status"><strong data-i18n="readyStrong">就绪</strong> <span data-i18n="readyText">— 点击读取，或在上方粘贴区粘贴内容。</span></div>
+        <div id="list">
+          <div class="empty" data-i18n="empty">还没有结果。
+1) 先复制一段内容（可带格式/图片）
+2) 点“读取剪贴板 API”，或直接在上方区域粘贴</div>
+        </div>
+      </div>
+    </main>
+
+    <section class="limits">
+      <h2 data-i18n="limitsTitle">使用说明与限制</h2>
+      <ul>
+        <li data-i18n="limit1">推荐在 https / localhost 下使用，剪贴板 API 需要安全上下文。</li>
+        <li data-i18n="limit2">点“读取剪贴板 API”时，浏览器可能弹出权限请求。</li>
+        <li data-i18n="limit3">粘贴方式通常能枚举更多 type 名称；系统/应用私有格式内容网页一般读不到。</li>
+        <li data-i18n="limit4">本页数据只在本地浏览器处理，不会上传到服务器。</li>
+      </ul>
+    </section>
+
+    <footer class="app-footer">
+      <span data-i18n="footerLocal">本地单页工具</span>
+      <a href="https://github.com/askofcc/clipboard-format-inspector" target="_blank" rel="noopener">GitHub</a>
+      <a href="./clipboard-inspector.user.js" data-i18n="footerScript">油猴脚本（可选）</a>
+      <span>MIT</span>
+    </footer>
+  </div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    const i18n = {
+      zh: {
+        title: '剪贴板格式查看器',
+        subtitle: '打开即用，用完关掉。尽量显示浏览器能读到的剪贴板格式。',
+        btnRead: '读取剪贴板 API',
+        btnClear: '清空结果',
+        btnExport: '导出 JSON',
+        hint: '浏览器限制：异步读取通常只能拿到标准 MIME（text/plain、text/html、image/png 等）。自定义格式更多只能在粘贴时看到 type 名，内容可能为空。',
+        pasteZone: '点这里，然后粘贴（Ctrl/Cmd+V）以捕获 clipboardData 中的所有 types',
+        pasteCaptured: '已捕获粘贴内容。可继续粘贴覆盖结果。',
+        readyStrong: '就绪',
+        readyText: '— 点击读取，或在上方粘贴区粘贴内容。',
+        empty: '还没有结果。\n1) 先复制一段内容（可带格式/图片）\n2) 点“读取剪贴板 API”，或直接在上方区域粘贴',
+        emptyNoResult: '没有读到任何可展示格式。\n可能原因：权限被拒绝、剪贴板为空、页面不在安全上下文、或格式受浏览器保护。',
+        limitsTitle: '使用说明与限制',
+        limit1: '推荐在 https / localhost 下使用，剪贴板 API 需要安全上下文。',
+        limit2: '点“读取剪贴板 API”时，浏览器可能弹出权限请求。',
+        limit3: '粘贴方式通常能枚举更多 type 名称；系统/应用私有格式内容网页一般读不到。',
+        limit4: '本页数据只在本地浏览器处理，不会上传到服务器。',
+        footerLocal: '本地单页工具',
+        footerScript: '油猴脚本（可选）',
+        reading: '读取中… 浏览器可能会弹出剪贴板权限请求。',
+        parsingPaste: '解析 paste 事件…',
+        cleared: '已清空',
+        formats: '个格式',
+        copyText: '复制文本',
+        copied: '已复制',
+        failed: '失败',
+        download: '下载',
+        render: '渲染',
+        htmlSource: 'HTML 源码',
+        text: '文本',
+        image: '图片',
+        hex: 'Hex',
+        emptyView: '空',
+        noContent: '(无内容或无法读取)',
+        unknownSize: 'unknown size',
+      },
+      en: {
+        title: 'Clipboard Format Inspector',
+        subtitle: 'Open when needed, close when done. Show as many browser-readable clipboard formats as possible.',
+        btnRead: 'Read Clipboard API',
+        btnClear: 'Clear',
+        btnExport: 'Export JSON',
+        hint: 'Browser limits: async reads usually only expose standard MIME types (text/plain, text/html, image/png, …). Custom formats are more often visible only as type names on paste, and content may be empty.',
+        pasteZone: 'Click here, then paste (Ctrl/Cmd+V) to capture all clipboardData types',
+        pasteCaptured: 'Paste captured. Paste again to replace results.',
+        readyStrong: 'Ready',
+        readyText: '— click Read, or paste into the zone above.',
+        empty: 'No results yet.\n1) Copy content first (formatted text / image is fine)\n2) Click “Read Clipboard API”, or paste above',
+        emptyNoResult: 'No displayable formats found.\nPossible causes: permission denied, empty clipboard, insecure context, or protected formats.',
+        limitsTitle: 'Notes & limits',
+        limit1: 'Prefer https / localhost. Clipboard API requires a secure context.',
+        limit2: '“Read Clipboard API” may prompt for permission.',
+        limit3: 'Paste usually enumerates more type names; app-private system formats are generally unreadable on the web.',
+        limit4: 'All processing stays in your browser. Nothing is uploaded.',
+        footerLocal: 'Local single-page tool',
+        footerScript: 'Userscript (optional)',
+        reading: 'Reading… the browser may ask for clipboard permission.',
+        parsingPaste: 'Parsing paste event…',
+        cleared: 'Cleared',
+        formats: 'format(s)',
+        copyText: 'Copy text',
+        copied: 'Copied',
+        failed: 'Failed',
+        download: 'Download',
+        render: 'Render',
+        htmlSource: 'HTML source',
+        text: 'Text',
+        image: 'Image',
+        hex: 'Hex',
+        emptyView: 'Empty',
+        noContent: '(no content or unreadable)',
+        unknownSize: 'unknown size',
+      },
+    };
+
+    let lang = localStorage.getItem('cfi-lang');
+    if (lang !== 'zh' && lang !== 'en') {
+      lang = (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+    }
+
+    const $ = (id) => document.getElementById(id);
+    const listEl = $('list');
+    const statusEl = $('status');
+    const pasteZone = $('pasteZone');
+    const btnRead = $('btnRead');
+    const btnClear = $('btnClear');
+    const btnExport = $('btnExport');
+    const langZh = $('langZh');
+    const langEn = $('langEn');
+
+    let lastNormalized = [];
+    let lastMeta = null;
+
+    function t(key) {
+      return (i18n[lang] && i18n[lang][key]) || i18n.en[key] || key;
+    }
+
+    function applyI18n() {
+      document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+      document.title = lang === 'zh'
+        ? '剪贴板格式查看器 / Clipboard Format Inspector'
+        : 'Clipboard Format Inspector / 剪贴板格式查看器';
+
+      document.querySelectorAll('[data-i18n]').forEach((node) => {
+        const key = node.getAttribute('data-i18n');
+        const value = t(key);
+        if (node === pasteZone) {
+          // only reset placeholder-like text when not showing capture message
+          if (!pasteZone.dataset.captured) node.textContent = value;
+        } else {
+          node.textContent = value;
+        }
+      });
+
+      // ready line is split into strong + span
+      if (!lastNormalized.length && !lastMeta) {
+        statusEl.className = 'status';
+        statusEl.innerHTML = `<strong>${escapeHtml(t('readyStrong'))}</strong> <span>${escapeHtml(t('readyText'))}</span>`;
+      }
+
+      langZh.classList.toggle('active', lang === 'zh');
+      langEn.classList.toggle('active', lang === 'en');
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function formatBytes(n) {
+      if (n == null || Number.isNaN(n)) return t('unknownSize');
+      if (n < 1024) return `${n} B`;
+      if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+      return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+    }
+
+    function looksBinary(text) {
+      if (!text) return false;
+      let bad = 0;
+      const sample = text.slice(0, 2000);
+      for (let i = 0; i < sample.length; i++) {
+        const code = sample.charCodeAt(i);
+        if (code === 0 || code < 9 || (code > 13 && code < 32)) bad++;
+      }
+      return bad / sample.length > 0.05;
+    }
+
+    function toHexPreview(bytes, max = 256) {
+      const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+      const slice = arr.slice(0, max);
+      let hex = '';
+      let ascii = '';
+      const lines = [];
+      for (let i = 0; i < slice.length; i++) {
+        const b = slice[i];
+        hex += b.toString(16).padStart(2, '0') + ' ';
+        ascii += b >= 32 && b <= 126 ? String.fromCharCode(b) : '.';
+        if ((i + 1) % 16 === 0) {
+          lines.push(`${hex.padEnd(16 * 3)} ${ascii}`);
+          hex = '';
+          ascii = '';
+        }
+      }
+      if (hex) lines.push(`${hex.padEnd(16 * 3)} ${ascii}`);
+      if (arr.length > max) lines.push(`... truncated, total ${arr.length} bytes`);
+      return lines.join('\n');
+    }
+
+    async function blobToText(blob) { return blob.text(); }
+    async function blobToArrayBuffer(blob) { return blob.arrayBuffer(); }
+    async function blobToDataUrl(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error || new Error('FileReader failed'));
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          const ok = document.execCommand('copy');
+          ta.remove();
+          return ok;
+        } catch {
+          return false;
+        }
+      }
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'clipboard-item.bin';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function classifyMime(type) {
+      const x = (type || '').toLowerCase();
+      if (!x) return 'unknown';
+      if (x.startsWith('image/')) return 'image';
+      if (x === 'text/html' || x.includes('html')) return 'html';
+      if (x.startsWith('text/') || x === 'application/json' || x.includes('xml') || x.includes('javascript')) return 'text';
+      if (x === 'files' || x === 'public.file-url') return 'files';
+      return 'binary';
+    }
+
+    async function normalizeItem(item) {
+      const type = item.type || 'unknown';
+      const kind = classifyMime(type);
+      const result = {
+        type,
+        kind,
+        source: item.source || 'unknown',
+        size: item.size,
+        notes: item.notes ? [...item.notes] : [],
+        previews: {},
+        rawText: null,
+        blob: item.blob || null,
+        file: item.file || null,
+      };
+
+      try {
+        if (item.text != null) {
+          result.rawText = String(item.text);
+          result.size = result.size ?? new Blob([result.rawText]).size;
+        } else if (item.blob) {
+          result.size = result.size ?? item.blob.size;
+          if (kind === 'text' || kind === 'html') {
+            result.rawText = await blobToText(item.blob);
+          } else if (kind === 'image') {
+            result.previews.dataUrl = await blobToDataUrl(item.blob);
+          } else {
+            const text = await blobToText(item.blob);
+            if (!looksBinary(text)) {
+              result.rawText = text;
+              result.kind = 'text';
+            } else {
+              result.previews.hex = toHexPreview(await blobToArrayBuffer(item.blob));
+              result.kind = 'binary';
+            }
+          }
+        } else if (item.file) {
+          result.size = item.file.size;
+          result.notes.push(`file name: ${item.file.name || '(unnamed)'}`);
+          if (item.file.type) result.notes.push(`file.type: ${item.file.type}`);
+          if (item.file.type.startsWith('image/')) {
+            result.kind = 'image';
+            result.blob = item.file;
+            result.previews.dataUrl = await blobToDataUrl(item.file);
+          } else if (item.file.type.startsWith('text/') || !item.file.type) {
+            const text = await item.file.text();
+            if (!looksBinary(text)) {
+              result.rawText = text;
+              result.kind = 'text';
+            } else {
+              result.previews.hex = toHexPreview(await item.file.arrayBuffer());
+              result.kind = 'binary';
+            }
+          } else {
+            result.previews.hex = toHexPreview(await item.file.arrayBuffer());
+            result.kind = 'binary';
+          }
+        }
+
+        if (result.kind === 'html' && result.rawText != null) {
+          result.previews.html = result.rawText;
+          result.previews.source = result.rawText;
+        }
+        if (result.kind === 'text' && result.rawText != null) {
+          result.previews.text = result.rawText;
+        }
+        if (result.kind === 'binary' && !result.previews.hex && result.blob) {
+          result.previews.hex = toHexPreview(await blobToArrayBuffer(result.blob));
+        }
+      } catch (err) {
+        result.notes.push(`parse error: ${err && err.message ? err.message : String(err)}`);
+      }
+
+      return result;
+    }
+
+    async function readViaClipboardApi() {
+      const items = [];
+      const notes = [];
+
+      if (!navigator.clipboard) {
+        notes.push('navigator.clipboard unavailable');
+        return { items, notes, method: 'clipboard-api' };
+      }
+
+      if (typeof navigator.clipboard.read === 'function') {
+        try {
+          const clipboardItems = await navigator.clipboard.read();
+          notes.push(`clipboard.read() => ${clipboardItems.length} ClipboardItem(s)`);
+          for (let i = 0; i < clipboardItems.length; i++) {
+            const ci = clipboardItems[i];
+            const types = Array.from(ci.types || []);
+            notes.push(`item[${i}] types: ${types.join(', ') || '(none)'}`);
+            for (const type of types) {
+              try {
+                const blob = await ci.getType(type);
+                items.push({ type, source: `clipboard.read()[#${i}]`, blob, size: blob.size });
+              } catch (err) {
+                items.push({
+                  type,
+                  source: `clipboard.read()[#${i}]`,
+                  text: '',
+                  notes: [`getType failed: ${err && err.message ? err.message : String(err)}`],
+                });
+              }
+            }
+          }
+          return { items, notes, method: 'clipboard.read' };
+        } catch (err) {
+          notes.push(`clipboard.read() failed: ${err && err.message ? err.message : String(err)}`);
+        }
+      } else {
+        notes.push('clipboard.read() unsupported');
+      }
+
+      if (typeof navigator.clipboard.readText === 'function') {
+        try {
+          const text = await navigator.clipboard.readText();
+          if (text != null && text !== '') {
+            items.push({ type: 'text/plain', source: 'clipboard.readText()', text });
+            notes.push('only text/plain via readText()');
+          } else {
+            notes.push('readText() returned empty string');
+          }
+        } catch (err) {
+          notes.push(`clipboard.readText() failed: ${err && err.message ? err.message : String(err)}`);
+        }
+      }
+
+      return { items, notes, method: 'clipboard-api-fallback' };
+    }
+
+    async function readViaPasteEvent(e) {
+      const items = [];
+      const notes = [];
+      const cd = e.clipboardData || window.clipboardData;
+      if (!cd) {
+        notes.push('paste event has no clipboardData');
+        return { items, notes, method: 'paste' };
+      }
+
+      const types = [];
+      try {
+        for (let i = 0; i < cd.types.length; i++) types.push(cd.types[i]);
+      } catch { /* ignore */ }
+      notes.push(`clipboardData.types: ${types.join(', ') || '(none)'}`);
+
+      for (const type of types) {
+        if (type === 'Files') continue;
+        let data = '';
+        try {
+          data = cd.getData(type);
+        } catch (err) {
+          items.push({
+            type,
+            source: 'paste/getData',
+            text: '',
+            notes: [`getData failed: ${err && err.message ? err.message : String(err)}`],
+          });
+          continue;
+        }
+        items.push({
+          type,
+          source: 'paste/getData',
+          text: data,
+          notes: data === '' ? ['getData returned empty (binary/protected?)'] : [],
+        });
+      }
+
+      if (cd.items && cd.items.length) {
+        notes.push(`clipboardData.items: ${cd.items.length}`);
+        for (let i = 0; i < cd.items.length; i++) {
+          const it = cd.items[i];
+          notes.push(`item[${i}] kind=${it.kind} type=${it.type || '(empty)'}`);
+          if (it.kind === 'file') {
+            const file = it.getAsFile();
+            if (file) {
+              items.push({
+                type: it.type || file.type || 'application/octet-stream',
+                source: `paste/items[#${i}]/file`,
+                file,
+                size: file.size,
+              });
+            }
+          } else if (it.kind === 'string') {
+            await new Promise((resolve) => {
+              try {
+                it.getAsString((str) => {
+                  const type = it.type || 'text/plain';
+                  const exists = items.some((x) => x.type === type && x.source.startsWith('paste/getData') && x.text === str);
+                  if (!exists) {
+                    items.push({ type, source: `paste/items[#${i}]/string`, text: str });
+                  }
+                  resolve();
+                });
+              } catch {
+                resolve();
+              }
+            });
+          }
+        }
+      }
+
+      if (cd.files && cd.files.length) {
+        notes.push(`clipboardData.files: ${cd.files.length}`);
+        for (let i = 0; i < cd.files.length; i++) {
+          const file = cd.files[i];
+          const already = items.some((x) => x.file === file || (x.file && x.file.name === file.name && x.file.size === file.size));
+          if (!already) {
+            items.push({
+              type: file.type || 'application/octet-stream',
+              source: `paste/files[#${i}]`,
+              file,
+              size: file.size,
+            });
+          }
+        }
+      }
+
+      const seen = new Set();
+      const deduped = [];
+      for (const it of items) {
+        const key = `${it.type}|${it.source}|${it.size || (it.text ? it.text.length : 0)}|${(it.text || '').slice(0, 32)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        deduped.push(it);
+      }
+      return { items: deduped, notes, method: 'paste' };
+    }
+
+    function setStatus(kind, html) {
+      statusEl.className = `status ${kind || ''}`;
+      statusEl.innerHTML = html;
+    }
+
+    function clearResults() {
+      lastNormalized = [];
+      lastMeta = null;
+      pasteZone.dataset.captured = '';
+      pasteZone.textContent = t('pasteZone');
+      listEl.innerHTML = `<div class="empty">${escapeHtml(t('empty'))}</div>`;
+      setStatus('', `<strong>${escapeHtml(t('cleared'))}</strong>`);
+    }
+
+    function el(tag, props = {}, children = []) {
+      const node = document.createElement(tag);
+      for (const [k, v] of Object.entries(props)) {
+        if (k === 'className') node.className = v;
+        else if (k === 'text') node.textContent = v;
+        else if (k === 'html') node.innerHTML = v;
+        else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2).toLowerCase(), v);
+        else if (v !== undefined && v !== null) node.setAttribute(k, String(v));
+      }
+      for (const child of [].concat(children)) {
+        if (child == null || child === false) continue;
+        node.appendChild(typeof child === 'string' ? document.createTextNode(child) : child);
+      }
+      return node;
+    }
+
+    function renderItems(normalized, meta) {
+      lastNormalized = normalized;
+      lastMeta = meta;
+      listEl.innerHTML = '';
+
+      if (!normalized.length) {
+        listEl.appendChild(el('div', { className: 'empty', text: t('emptyNoResult') }));
+      }
+
+      for (const item of normalized) {
+        const card = el('div', { className: 'card' });
+        const head = el('div', { className: 'card-head' });
+        const left = el('div', {}, [
+          el('div', {
+            className: 'type',
+            html: `${escapeHtml(item.type)}<span class="badge">${escapeHtml(item.kind)}</span>`,
+          }),
+          el('div', {
+            className: 'meta',
+            text: [
+              `source: ${item.source}`,
+              `size: ${formatBytes(item.size)}`,
+              ...(item.notes || []),
+            ].join(' · '),
+          }),
+        ]);
+        const actions = el('div', { className: 'actions' });
+        const copyBtn = el('button', { className: 'mini', type: 'button', text: t('copyText') });
+        const dlBtn = el('button', { className: 'mini', type: 'button', text: t('download') });
+        actions.append(copyBtn, dlBtn);
+        head.append(left, actions);
+
+        const tabs = el('div', { className: 'tabs' });
+        const content = el('div', { className: 'content' });
+        const views = [];
+
+        if (item.kind === 'html') {
+          views.push({
+            id: 'render',
+            label: t('render'),
+            render: () => {
+              const box = el('div', { className: 'html-view' });
+              const host = el('div');
+              box.appendChild(host);
+              const shadow = host.attachShadow({ mode: 'open' });
+              shadow.innerHTML = item.previews.html || '';
+              return box;
+            },
+          });
+          views.push({
+            id: 'source',
+            label: t('htmlSource'),
+            render: () => el('pre', { className: 'pre', text: item.previews.source || '' }),
+          });
+        }
+        if (item.kind === 'text' || item.rawText != null) {
+          views.push({
+            id: 'text',
+            label: t('text'),
+            render: () => el('pre', { className: 'pre', text: item.rawText || item.previews.text || '' }),
+          });
+        }
+        if (item.kind === 'image' && item.previews.dataUrl) {
+          views.push({
+            id: 'image',
+            label: t('image'),
+            render: () => {
+              const wrap = el('div', { className: 'img-wrap' });
+              wrap.append(
+                el('img', { src: item.previews.dataUrl, alt: item.type }),
+                el('div', { className: 'meta', text: item.previews.dataUrl.slice(0, 64) + '...' })
+              );
+              return wrap;
+            },
+          });
+        }
+        if (item.previews.hex) {
+          views.push({
+            id: 'hex',
+            label: t('hex'),
+            render: () => el('pre', { className: 'pre', text: item.previews.hex }),
+          });
+        }
+        if (!views.length) {
+          views.push({
+            id: 'empty',
+            label: t('emptyView'),
+            render: () => el('pre', { className: 'pre', text: t('noContent') }),
+          });
+        }
+
+        const used = new Set();
+        const uniqViews = [];
+        for (const v of views) {
+          if (used.has(v.id)) continue;
+          used.add(v.id);
+          uniqViews.push(v);
+        }
+
+        let active = uniqViews[0].id;
+        function paint() {
+          tabs.innerHTML = '';
+          content.innerHTML = '';
+          for (const v of uniqViews) {
+            tabs.appendChild(el('button', {
+              className: `tab${v.id === active ? ' active' : ''}`,
+              type: 'button',
+              text: v.label,
+              onClick: () => { active = v.id; paint(); },
+            }));
+          }
+          const current = uniqViews.find((v) => v.id === active) || uniqViews[0];
+          content.appendChild(current.render());
+        }
+        paint();
+
+        copyBtn.addEventListener('click', async () => {
+          const text = item.rawText != null
+            ? item.rawText
+            : item.previews.hex || item.previews.dataUrl || JSON.stringify({ type: item.type, source: item.source }, null, 2);
+          const ok = await copyText(text);
+          copyBtn.textContent = ok ? t('copied') : t('failed');
+          setTimeout(() => { copyBtn.textContent = t('copyText'); }, 1200);
+        });
+
+        dlBtn.addEventListener('click', async () => {
+          try {
+            let blob = item.blob || item.file;
+            if (!blob) {
+              if (item.rawText != null) blob = new Blob([item.rawText], { type: item.type || 'text/plain' });
+              else if (item.previews.hex) blob = new Blob([item.previews.hex], { type: 'text/plain' });
+              else throw new Error('nothing to download');
+            }
+            const safeType = (item.type || 'bin').replace(/[^\w.+-]+/g, '_');
+            const ext =
+              item.kind === 'image' && item.type.includes('png') ? 'png' :
+              item.kind === 'image' && item.type.includes('jpeg') ? 'jpg' :
+              item.kind === 'html' ? 'html' :
+              item.kind === 'text' ? 'txt' : 'bin';
+            downloadBlob(blob, `clipboard-${safeType}.${ext}`);
+          } catch (err) {
+            dlBtn.textContent = t('failed');
+            setTimeout(() => { dlBtn.textContent = t('download'); }, 1200);
+            console.warn(err);
+          }
+        });
+
+        card.append(head, tabs, content);
+        listEl.appendChild(card);
+      }
+
+      const method = meta?.method || 'unknown';
+      const noteText = (meta?.notes || []).map(escapeHtml).join('<br>');
+      setStatus(
+        normalized.length ? 'ok' : 'warn',
+        `<strong>${normalized.length} ${escapeHtml(t('formats'))}</strong> · method: ${escapeHtml(method)}` +
+        (noteText ? `<br>${noteText}` : '')
+      );
+    }
+
+    async function handleReadApi() {
+      setStatus('', `<strong>${escapeHtml(t('reading'))}</strong>`);
+      btnRead.disabled = true;
+      try {
+        const { items, notes, method } = await readViaClipboardApi();
+        const normalized = [];
+        for (const it of items) normalized.push(await normalizeItem(it));
+        const order = { html: 0, text: 1, image: 2, files: 3, binary: 4, unknown: 5 };
+        normalized.sort((a, b) => (order[a.kind] ?? 9) - (order[b.kind] ?? 9) || a.type.localeCompare(b.type));
+        renderItems(normalized, { notes, method });
+      } catch (err) {
+        setStatus('err', `<strong>${escapeHtml(t('failed'))}</strong> — ${escapeHtml(err && err.message ? err.message : String(err))}`);
+      } finally {
+        btnRead.disabled = false;
+      }
+    }
+
+    async function handlePaste(e) {
+      e.preventDefault();
+      setStatus('', `<strong>${escapeHtml(t('parsingPaste'))}</strong>`);
+      try {
+        const { items, notes, method } = await readViaPasteEvent(e);
+        const normalized = [];
+        for (const it of items) normalized.push(await normalizeItem(it));
+        const order = { html: 0, text: 1, image: 2, files: 3, binary: 4, unknown: 5 };
+        normalized.sort((a, b) => (order[a.kind] ?? 9) - (order[b.kind] ?? 9) || a.type.localeCompare(b.type));
+        renderItems(normalized, { notes, method });
+        pasteZone.dataset.captured = '1';
+        pasteZone.textContent = t('pasteCaptured');
+      } catch (err) {
+        setStatus('err', `<strong>${escapeHtml(t('failed'))}</strong> — ${escapeHtml(err && err.message ? err.message : String(err))}`);
+      }
+    }
+
+    function exportJson() {
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        page: location.href,
+        meta: lastMeta,
+        items: lastNormalized.map((it) => ({
+          type: it.type,
+          kind: it.kind,
+          source: it.source,
+          size: it.size,
+          notes: it.notes,
+          text: it.rawText,
+          hasImage: Boolean(it.previews?.dataUrl),
+          hexPreview: it.previews?.hex || null,
+        })),
+      };
+      downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), `clipboard-inspect-${Date.now()}.json`);
+    }
+
+    function setLang(next) {
+      lang = next;
+      localStorage.setItem('cfi-lang', lang);
+      applyI18n();
+      if (lastNormalized.length || lastMeta) {
+        renderItems(lastNormalized, lastMeta || { notes: [], method: 'unknown' });
+      } else {
+        listEl.innerHTML = `<div class="empty">${escapeHtml(t('empty'))}</div>`;
+      }
+    }
+
+    btnRead.addEventListener('click', handleReadApi);
+    btnClear.addEventListener('click', clearResults);
+    btnExport.addEventListener('click', exportJson);
+    pasteZone.addEventListener('paste', handlePaste);
+    pasteZone.addEventListener('input', () => {
+      if (pasteZone.childElementCount > 0 && !pasteZone.dataset.captured) {
+        pasteZone.textContent = t('pasteZone');
+      }
+    });
+    langZh.addEventListener('click', () => setLang('zh'));
+    langEn.addEventListener('click', () => setLang('en'));
+
+    applyI18n();
+    pasteZone.focus();
+  })();
+  </script>
+</body>
+</html>
