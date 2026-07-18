@@ -1,59 +1,49 @@
 # 剪贴板格式查看器
 
-[English](./README.en.md) · [在线使用](https://askofcc.github.io/clipboard-format-inspector/)
+[English](./README.en.md) · **正式地址：[https://clip.srint.cn/](https://clip.srint.cn/)**
 
-低频工具，做成**单网页**更合适：需要时打开，用完关掉。
+低频工具，做成**单网页**：需要时打开，用完关掉。
 
-网页会尽量展示浏览器能读到的剪贴板格式（`text/plain`、`text/html`、图片、以及 paste 时能看到的自定义 type 名）。
+> **唯一自定义域名：`clip.srint.cn`**
+> 由 Cloudflare Pages 托管（国内访问通常比 `github.io` 更稳）。
+> 仓库推送后可自动部署，不必维护两套代码。
 
-## 在线使用
+## 在哪里用
 
-**[打开网页版](https://askofcc.github.io/clipboard-format-inspector/)**
-
-也可以直接下载本仓库的 [`index.html`](./index.html)，用浏览器本地打开（部分浏览器对 `file://` 的剪贴板 API 限制更严，优先用在线版或本地 http 服务）。
+| 入口 | 说明 |
+|------|------|
+| **https://clip.srint.cn/** | 正式入口（Cloudflare Pages + 自定义域名） |
+| GitHub Pages | 备用：`https://askofcc.github.io/clipboard-format-inspector/` |
+| 本仓库 `index.html` | 本地打开（`file://` 下剪贴板 API 可能受限） |
 
 ## 功能
 
-- **读取剪贴板 API**：`navigator.clipboard.read()`
-- **粘贴捕获**：在页面粘贴区 `Ctrl/Cmd+V`，枚举 `clipboardData.types`
-- 按类型展示：文本 / HTML 渲染与源码 / 图片 / Hex
-- 复制、下载单项内容、导出 JSON
-- 中英文切换（记住选择）
-- 数据只在本地浏览器处理，不上传
+- 读取剪贴板 API：`navigator.clipboard.read()`
+- 粘贴捕获：枚举 `clipboardData.types`
+- 文本 / HTML 渲染与源码 / 图片 / Hex
+- 复制、下载、导出 JSON
+- 中英文切换
+- 本地处理，不上传剪贴板内容
 
-## 使用
+## 部署与维护成本
 
-1. 复制一段内容（纯文本、富文本、图片等）
-2. 打开网页
-3. 点 **读取剪贴板 API**，或在粘贴区粘贴
-4. 查看各 MIME 类型卡片
+**很低。** 只有这一份仓库：
+
+1. 改 `index.html` 等文件并 push 到 `main`
+2. GitHub Pages 自动更新（GitHub 自带）
+3. Cloudflare Pages 通过 GitHub Action 自动部署（需一次性配置 `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`）
+
+没有两套业务代码，只是**同一产物两个托管出口**；平时维护 ≈ 改一个文件 + push。
 
 ## 浏览器限制
 
-网页**不能**像桌面程序那样读完系统剪贴板全部私有格式。
-
-| 路径 | 通常能看到什么 |
-|------|----------------|
-| `clipboard.read()` | 标准 MIME；需要权限与安全上下文（https / localhost） |
-| `paste` + `clipboardData.types` | type 列表更全；很多自定义格式内容为空 |
-| 应用私有格式 | 内容基本读不到 |
+网页不能像桌面程序那样读完系统剪贴板全部私有格式。标准 MIME 通常可读；自定义格式多半只能看到 type 名。
 
 ## 可选：油猴脚本
 
-如果你更想在任意网页角落随时点开，也可以装：
+[clipboard-inspector.user.js](https://raw.githubusercontent.com/askofcc/clipboard-format-inspector/main/clipboard-inspector.user.js)
 
-**[clipboard-inspector.user.js](https://raw.githubusercontent.com/askofcc/clipboard-format-inspector/main/clipboard-inspector.user.js)**
-
-主推还是单网页。
-
-## 文件
-
-| 文件 | 说明 |
-|------|------|
-| `index.html` | 单页工具（主推） |
-| `clipboard-inspector.user.js` | 油猴脚本（可选） |
-| `README.md` / `README.en.md` | 中英文说明 |
-| `LICENSE` | MIT |
+主推仍是单网页。
 
 ## 许可
 

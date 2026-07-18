@@ -1,59 +1,39 @@
 # Clipboard Format Inspector
 
-[中文说明](./README.md) · [Live demo](https://askofcc.github.io/clipboard-format-inspector/)
+[中文说明](./README.md) · **Canonical URL: [https://clip.srint.cn/](https://clip.srint.cn/)**
 
-A low-frequency utility works better as a **single webpage**: open it when needed, close it when done.
+A low-frequency utility as a **single webpage**: open when needed, close when done.
 
-The page shows as many browser-readable clipboard formats as possible (`text/plain`, `text/html`, images, and custom type names visible on paste).
+> **Only custom domain: `clip.srint.cn`**
+> Hosted on Cloudflare Pages (usually more reachable than `github.io` in some networks).
+> One repository powers automatic updates — no duplicate app code.
 
-## Use online
+## Where to use it
 
-**[Open the web app](https://askofcc.github.io/clipboard-format-inspector/)**
-
-You can also download [`index.html`](./index.html) and open it locally. Some browsers restrict the Clipboard API more on `file://`; prefer the hosted page or a local http server.
+| Entry | Notes |
+|------|------|
+| **https://clip.srint.cn/** | Primary (Cloudflare Pages + custom domain) |
+| GitHub Pages | Fallback: `https://askofcc.github.io/clipboard-format-inspector/` |
+| `index.html` in this repo | Local open (`file://` may limit Clipboard API) |
 
 ## Features
 
-- **Clipboard API read** via `navigator.clipboard.read()`
-- **Paste capture** with `Ctrl/Cmd+V` to enumerate `clipboardData.types`
-- Format-aware views: text / HTML render + source / image / hex
-- Copy, download items, export JSON
-- Chinese / English switch (persisted)
-- Processing stays in your browser; nothing is uploaded
+- Clipboard API read
+- Paste capture for fuller type lists
+- Text / HTML / image / hex views
+- Copy, download, JSON export
+- Chinese / English UI
+- Local-only processing
 
-## Usage
+## Maintenance cost
 
-1. Copy content (plain text, rich text, image, etc.)
-2. Open the page
-3. Click **Read Clipboard API**, or paste into the paste zone
-4. Inspect each MIME type card
+**Low.** One repo:
 
-## Browser limitations
+1. Edit files and push to `main`
+2. GitHub Pages updates automatically
+3. Cloudflare Pages deploys via GitHub Action (one-time secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`)
 
-Web pages **cannot** fully inspect every private system clipboard format.
-
-| Path | What you usually get |
-|------|----------------------|
-| `clipboard.read()` | Standard MIME types; needs permission + secure context (https / localhost) |
-| `paste` + `clipboardData.types` | Fuller type list; many custom payloads empty |
-| App-private formats | Content generally unavailable |
-
-## Optional userscript
-
-If you prefer a floating button on every site:
-
-**[clipboard-inspector.user.js](https://raw.githubusercontent.com/askofcc/clipboard-format-inspector/main/clipboard-inspector.user.js)**
-
-The single-page app is the recommended default.
-
-## Files
-
-| File | Description |
-|------|-------------|
-| `index.html` | Single-page app (recommended) |
-| `clipboard-inspector.user.js` | Optional userscript |
-| `README.md` / `README.en.md` | Docs |
-| `LICENSE` | MIT |
+Same artifact, two hosts. Day-to-day work is just edit + push.
 
 ## License
 
